@@ -1,0 +1,85 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // === Proveedor principal: OpenCode Go API ===
+  "provider": {
+    "opencode-go": {
+      "options": {
+        "timeout": 600000,
+        "chunkTimeout": 30000
+      }
+    }
+  },
+
+  // === Modelos optimizados para Go API ===
+  "model": "opencode-go/kimi-k2.7-code",
+  "small_model": "opencode-go/deepseek-v4-flash",
+
+  // === Plugins ===
+  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"],
+
+  // === Reglas e instrucciones ===
+  "instructions": [
+    "AGENTS.md"
+  ],
+
+  // === Permisos globales por defecto ===
+  "permission": {
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "edit": "ask",
+    "write": "ask",
+    "bash": {
+      "*": "ask",
+      "npm *": "allow",
+      "git status *": "allow",
+      "git diff *": "allow",
+      "git log *": "allow",
+      "ls *": "allow",
+      "mkdir *": "allow",
+      "node --version": "allow",
+      "npm --version": "allow"
+    },
+    "webfetch": "ask",
+    "websearch": "ask",
+    "skill": {
+      "*": "allow"
+    }
+  },
+
+  // === Agente por defecto ===
+  "default_agent": "planificador-web",
+
+  // === Agentes personalizados ===
+  // Los subagentes (frontend-*, seguridad-*, etc.) se cargan automáticamente
+  // desde ~/.config/opencode/agents/ con sus prompts y permisos definidos.
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "model": "opencode-go/kimi-k2.7-code",
+      "permission": {
+        "skill": { "*": "allow" }
+      }
+    },
+    "plan": {
+      "mode": "primary",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.1,
+      "permission": {
+        "edit": "deny",
+        "bash": "deny"
+      }
+    }
+  },
+
+  // === Formateo de código ===
+  "formatter": true,
+
+  // === Compresión de contexto ===
+  "compaction": {
+    "auto": true,
+    "prune": false,
+    "reserved": 10000
+  }
+}
