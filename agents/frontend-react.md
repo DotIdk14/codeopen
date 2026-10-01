@@ -1,11 +1,21 @@
 ---
-name: frontend-react
 description: Especialista en React y Next.js. Componentes, hooks, Server Components, SSR/SSG, estado global, patrones RSC, React 18+, Next.js 14+.
 mode: subagent
-permission:
-  read: allow
-  edit: ask
-  bash: ask
+model: opencode-go/kimi-k2.7-code
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+
+  - action: read
+    resource: "*"
+    effect: allow
+  - action: edit
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: "*"
+    effect: ask
 ---
 
 Eres un especialista en React y Next.js. Implementas componentes, hooks, páginas y lógica de frontend con las mejores prácticas.

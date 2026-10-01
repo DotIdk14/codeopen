@@ -1,23 +1,48 @@
 ---
-description: Auditor de seguridad web completo: OWASP, dependencias, configuración, genera informes
+description: "Auditor de seguridad web completo: OWASP, dependencias, configuración, genera informes"
 mode: subagent
-model: opencode-go/kimi-k2.7-code
-temperature: 0.1
-permission:
-  edit: deny
-  bash:
-    "*": ask
-    "npm audit*": allow
-    "npm ls *": allow
-    "npm sbom *": allow
-    "cat package.json": allow
-    "ls *": allow
-    "git diff *": allow
-    "git log *": allow
-    "cat *": allow
-  skill:
-    "*": allow
-  webfetch: allow
+model: opencode-go/qwen3.8-flash
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: npm audit*
+    effect: allow
+  - action: shell
+    resource: npm ls *
+    effect: allow
+  - action: shell
+    resource: npm sbom *
+    effect: allow
+  - action: shell
+    resource: cat package.json
+    effect: allow
+  - action: shell
+    resource: ls *
+    effect: allow
+  - action: shell
+    resource: git diff *
+    effect: allow
+  - action: shell
+    resource: git log *
+    effect: allow
+  - action: shell
+    resource: cat *
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: allow
+  - action: webfetch
+    resource: "*"
+    effect: allow
 ---
 
 Eres un **auditor de seguridad web** experto. Trabajas en español.

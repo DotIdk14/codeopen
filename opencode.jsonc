@@ -1,85 +1,293 @@
 {
   "$schema": "https://opencode.ai/config.json",
 
-  // === Proveedor principal: OpenCode Go API ===
-  "provider": {
+  // ==========================================================
+  // Config GLOBAL de OpenCode v2 (sintaxis V2).
+  // Respaldo portable: DotIdk14/codeopen
+  //
+  // OBJETIVO: maximizar horas de vibecoding por dolar.
+  //   TIER 1 barato   -> opencode-go/qwen3.8-flash   (60-65%)
+  //   TIER 2 estandar -> opencode-go/kimi-k2.7-code   (25-35%)
+  //   TIER 3 premium  -> openai/gpt-6.1-sol           ( 5-15%)
+  //   FALLBACK        -> github-copilot/*             (manual, nunca automatico)
+  //
+  // REGLA DE ORO: el `model` raiz es el MAS BARATO.
+  // Un subagente sin `model:` propio hereda este. Asi, cualquier
+  // agente futuro que olvide declarar modelo cuesta barato, no caro.
+  // ==========================================================
+
+  "providers": {
     "opencode-go": {
-      "options": {
+      "settings": {
         "timeout": 600000,
         "chunkTimeout": 30000
       }
     }
   },
 
-  // === Modelos optimizados para Go API ===
-  "model": "opencode-go/kimi-k2.7-code",
-  "small_model": "opencode-go/deepseek-v4-flash",
+  "model": "opencode-go/qwen3.8-flash",
 
-  // === Plugins ===
-  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"],
+  "plugins": ["superpowers@git+https://github.com/obra/superpowers.git"],
 
-  // === Reglas e instrucciones ===
-  "instructions": [
-    "AGENTS.md"
-  ],
+  // AGENTS.md se carga automaticamente desde este directorio.
 
-  // === Permisos globales por defecto ===
-  "permission": {
-    "read": "allow",
-    "glob": "allow",
-    "grep": "allow",
-    "edit": "ask",
-    "write": "ask",
-    "bash": {
-      "*": "ask",
-      "npm *": "allow",
-      "git status *": "allow",
-      "git diff *": "allow",
-      "git log *": "allow",
-      "ls *": "allow",
-      "mkdir *": "allow",
-      "node --version": "allow",
-      "npm --version": "allow"
+  // ==========================================================
+  // MCP servers
+  // ==========================================================
+  "mcp": {
+    "timeout": {
+      "startup": 60000,
+      "catalog": 30000,
+      "execution": 600000
     },
-    "webfetch": "ask",
-    "websearch": "ask",
-    "skill": {
-      "*": "allow"
+    "servers": {
+      // Serena: code intelligence semantica (simbolos, referencias, estructura).
+      // REQUIERE: instalacion oficial previa ->  uv tool install -p 3.13 serena-agent
+      // `disabled: true` hasta que exista el binario. Para activar: ponlo en false
+      // y ejecuta `opencode reload`.
+      // NO es autonomous shell: sus tools de ejecucion y edicion estan
+      // bloqueados por `experimental.policies` (ver abajo).
+      "serena": {
+        "type": "local",
+        "command": ["serena", "start-mcp-server"],
+        "disabled": true,
+        "environment": {
+          "SERENA_LOG_LEVEL": "WARNING"
+        }
+      }
     }
   },
 
-  // === Agente por defecto ===
-  "default_agent": "planificador-web",
+  // ==========================================================
+  // Permisos globales
+  // Lista ordenada de {action, resource, effect}.
+  // Gana la ULTIMA coincidencia: reglas amplias primero,
+  // excepciones al final.
+  //
+  // Netamente: el default "ask" de shell es la puerta de seguridad que
+  // respalda las reglas de AGENTS.md y de la skill safe-corporate-windows.
+  // No se pueden enumerar aqui todos los comandos state-changing de Windows;
+  // la clasificacion read-only vs state-changing vive en la skill.
+  // ==========================================================
+  "permissions": [
+    // --- Descubrimiento local: solo lectura ---
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "glob", "resource": "*", "effect": "allow" },
+    { "action": "grep", "resource": "*", "effect": "allow" },
+    { "action": "skill", "resource": "*", "effect": "allow" },
 
-  // === Agentes personalizados ===
-  // Los subagentes (frontend-*, seguridad-*, etc.) se cargan automáticamente
-  // desde ~/.config/opencode/agents/ con sus prompts y permisos definidos.
-  "agent": {
+    // --- Nunca leer secretos ---
+    { "action": "read", "resource": "*.env", "effect": "deny" },
+    { "action": "read", "resource": "*.env.*", "effect": "deny" },
+    { "action": "read", "resource": "auth.json", "effect": "deny" },
+    { "action": "read", "resource": "service.json", "effect": "deny" },
+    { "action": "read", "resource": "*.ssh/*", "effect": "deny" },
+    { "action": "read", "resource": "*.pem", "effect": "deny" },
+    { "action": "read", "resource": "*.key", "effect": "deny" },
+
+    // --- Serena: NO disponible indiscriminadamente ---
+    // Denegado por defecto. Solo los agentes que lo necesitan
+    // re-abilitan en su propio bloque de permisos (que se carga DESPUES).
+    { "action": "serena_*", "resource": "*", "effect": "deny" },
+
+    // --- Fuera del workspace: preguntar siempre ---
+    { "action": "external_directory", "resource": "*", "effect": "ask" },
+
+    // --- Modificar archivos: preguntar ---
+    { "action": "edit", "resource": "*", "effect": "ask" },
+
+    // --- Web: preguntar ---
+    { "action": "webfetch", "resource": "*", "effect": "ask" },
+    { "action": "websearch", "resource": "*", "effect": "ask" },
+
+    // --- Anidamiento de agentes: solo web-developer decide ---
+    { "action": "subagent", "resource": "*", "effect": "deny" },
+
+    // --- Shell: preguntar por defecto ---
+    { "action": "shell", "resource": "*", "effect": "ask" },
+
+    // --- Git: solo inspeccion automatica ---
+    { "action": "shell", "resource": "git status *", "effect": "allow" },
+    { "action": "shell", "resource": "git diff *", "effect": "allow" },
+    { "action": "shell", "resource": "git log *", "effect": "allow" },
+    { "action": "shell", "resource": "git show *", "effect": "allow" },
+    { "action": "shell", "resource": "git status", "effect": "allow" },
+    { "action": "shell", "resource": "git diff", "effect": "allow" },
+    { "action": "shell", "resource": "git log", "effect": "allow" },
+
+    // --- Git DESTRUCTIVO: preguntar, nunca automatico ---
+    // (el veto absoluto vive en experimental.policies)
+    { "action": "shell", "resource": "git reset --hard *", "effect": "ask" },
+    { "action": "shell", "resource": "git clean *", "effect": "ask" },
+    { "action": "shell", "resource": "git push --force *", "effect": "ask" },
+    { "action": "shell", "resource": "git push -f *", "effect": "ask" },
+    { "action": "shell", "resource": "git checkout -- *", "effect": "ask" },
+    { "action": "shell", "resource": "git restore *", "effect": "ask" },
+    { "action": "shell", "resource": "git branch -D *", "effect": "ask" },
+
+    // --- Excepciones seguras (van DESPUES, asi que ganan) ---
+    { "action": "shell", "resource": "npm *", "effect": "allow" },
+    { "action": "shell", "resource": "npx *", "effect": "allow" },
+    { "action": "shell", "resource": "ls *", "effect": "allow" },
+    { "action": "shell", "resource": "mkdir *", "effect": "allow" },
+    { "action": "shell", "resource": "node --version", "effect": "allow" },
+    { "action": "shell", "resource": "npm --version", "effect": "allow" }
+  ],
+
+  // ==========================================================
+  // POLICIES = prohibiciones ABSOLUTAS (OpenCode v2, estables)
+  //
+  // Diferencia clave:
+  //   PERMISSIONS -> allow / ask / deny  (el usuario puede responder)
+  //   POLICIES    -> deny / allow        (nunca pregunta, no hay escape)
+  //
+  // Una policy `deny` se aplica DESPUES de las reglas del agente y de las
+  // aprobaciones "Allow always". Vence a un `ask`.
+  // Precedencia: config global > config de proyecto (un repo no puede
+  // re-habilitar lo que tu config global veta).
+  //
+  // Ultima coincidencia gana dentro del mismo archivo.
+  // ==========================================================
+  "experimental": {
+    "policies": [
+      // --- Git: acciones que un agente NUNCA necesita hacer solo ---
+      { "action": "permission", "resource": "shell:git push --force *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git push -f *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git push --mirror *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git push --delete *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git reset --hard *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git clean *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git checkout -- *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git checkout .*", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git restore .*", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git branch -D *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git stash drop *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git stash clear *", "effect": "deny" },
+
+      // --- Formas SIN argumentos ---
+      // Un patron "git reset --hard *" NO matchea "git reset --hard" a secas.
+      // Y las formas a secas son igual de destructivas: `git stash drop` borra
+      // el stash, `git reset --hard` revierte el working tree, `git push --force`
+      // sobreescribe el remoto. Sin estas lineas caerian a `ask`.
+      { "action": "permission", "resource": "shell:git reset --hard", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git push --force", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git push -f", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git push --mirror", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git push --delete", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git clean", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git checkout .", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git restore .", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git branch -D", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git stash drop", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git stash clear", "effect": "deny" },
+
+      // --- Credenciales: lectura prohibida ---
+      { "action": "permission", "resource": "read:*/.ssh/*", "effect": "deny" },
+      { "action": "permission", "resource": "read:*/.aws/*", "effect": "deny" },
+      { "action": "permission", "resource": "read:*/.kube/*", "effect": "deny" },
+      { "action": "permission", "resource": "read:*/.gnupg/*", "effect": "deny" },
+      { "action": "permission", "resource": "read:*/.docker/config.json", "effect": "deny" },
+      { "action": "permission", "resource": "read:*/.netrc", "effect": "deny" },
+      { "action": "permission", "resource": "read:*/.npmrc", "effect": "deny" },
+      { "action": "permission", "resource": "read:*/.pypirc", "effect": "deny" },
+      { "action": "permission", "resource": "read:*auth.json", "effect": "deny" },
+      { "action": "permission", "resource": "read:*service.json", "effect": "deny" },
+      { "action": "permission", "resource": "read:*credentials.json", "effect": "deny" },
+      { "action": "permission", "resource": "read:*credentials.xml", "effect": "deny" },
+      { "action": "permission", "resource": "read:*credentials.yaml", "effect": "deny" },
+      { "action": "permission", "resource": "read:*credentials.yml", "effect": "deny" },
+      { "action": "permission", "resource": "read:*.p12", "effect": "deny" },
+      { "action": "permission", "resource": "read:*.pfx", "effect": "deny" },
+      { "action": "permission", "resource": "read:*.keystore", "effect": "deny" },
+      { "action": "permission", "resource": "read:*id_rsa*", "effect": "deny" },
+      { "action": "permission", "resource": "read:*id_ed25519*", "effect": "deny" },
+
+      // --- Secretos en proyecto: denegar, con excepciones legitimas ---
+      { "action": "permission", "resource": "read:*.env*", "effect": "deny" },
+      { "action": "permission", "resource": "read:*.env.example", "effect": "allow" },
+      { "action": "permission", "resource": "read:*.env.sample", "effect": "allow" },
+      { "action": "permission", "resource": "read:*.env.template", "effect": "allow" },
+      { "action": "permission", "resource": "read:*.env.dist", "effect": "allow" },
+
+      // --- Credenciales: modificacion prohibida ---
+      { "action": "permission", "resource": "edit:*auth.json", "effect": "deny" },
+      { "action": "permission", "resource": "edit:*service.json", "effect": "deny" },
+      { "action": "permission", "resource": "edit:*opencode.db*", "effect": "deny" },
+      { "action": "permission", "resource": "edit:*/.ssh/*", "effect": "deny" },
+      { "action": "permission", "resource": "edit:*/.aws/*", "effect": "deny" },
+      { "action": "permission", "resource": "edit:*.env", "effect": "deny" },
+      { "action": "permission", "resource": "edit:*.pem", "effect": "deny" },
+      { "action": "permission", "resource": "edit:*.key", "effect": "deny" },
+
+      // --- Serena = CODE INTELLIGENCE, nunca AUTONOMOUS SHELL ---
+      // Lista de tools verificada contra la doc oficial de Serena.
+      // Se veta por PATRON (no por nombre exacto) para cubrir tambien
+      // tools futuras que Serena anada en versiones posteriores.
+      // Los wildcards evitan que un rename upstream reintroduzca el hole.
+      //
+      // CRITICO: `serena_repl` (BETA) ejecuta Python arbitrario y
+      // `jet_brains_debug` evalua expresiones: equivalen a shell.
+      // `query_project` / `list_queryable_projects` leen proyectos
+      // EXTERNOS al activo y bypasean el limite del workspace.
+      // Todos vetados para todos los agentes, sin excepcion.
+      { "action": "permission", "resource": "serena_*repl*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*debug*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*query*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_remove_project:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_list_queryable_projects:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_execute_shell_command:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*replace*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*insert*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*delete*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*rename*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*move*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*create*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*write*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*edit*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*inline*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*dashboard*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*onboarding*:*", "effect": "deny" },
+      { "action": "permission", "resource": "serena_*restart_language_server*:*", "effect": "deny" },
+
+      // --- Sources de supply chain: no se instalan ni ejecutan solas ---
+      // Snyk Agent Scan envia el CONTENIDO de skills y configs MCP a una
+      // API externa y no documenta opt-out. Prohibido por defecto.
+      { "action": "permission", "resource": "shell:*snyk-agent-scan*", "effect": "deny" },
+      { "action": "permission", "resource": "shell:*snyk agent scan*", "effect": "deny" },
+      { "action": "permission", "resource": "shell:*--dangerously-run-mcp-servers*", "effect": "deny" }
+    ]
+  },
+
+  // === Agente por defecto: el ORCHESTRADOR ===
+  "default_agent": "web-developer",
+
+  // === Agentes definidos en JSON ===
+  "agents": {
     "build": {
       "mode": "primary",
-      "model": "opencode-go/kimi-k2.7-code",
-      "permission": {
-        "skill": { "*": "allow" }
-      }
+      "model": "opencode-go/qwen3.8-flash",
+      "permissions": [
+        { "action": "skill", "resource": "*", "effect": "allow" },
+        { "action": "subagent", "resource": "*", "effect": "allow" }
+      ]
     },
     "plan": {
       "mode": "primary",
-      "model": "opencode-go/deepseek-v4-flash",
-      "temperature": 0.1,
-      "permission": {
-        "edit": "deny",
-        "bash": "deny"
-      }
+      "model": "opencode-go/qwen3.8-flash",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "*", "effect": "ask" },
+        { "action": "subagent", "resource": "*", "effect": "deny" }
+      ]
     }
   },
 
-  // === Formateo de código ===
   "formatter": true,
 
-  // === Compresión de contexto ===
   "compaction": {
     "auto": true,
-    "prune": false,
-    "reserved": 10000
+    "keep": {
+      "tokens": 10000
+    }
   }
 }

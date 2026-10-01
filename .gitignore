@@ -10,3 +10,10 @@ package-lock.json
 *.key
 auth.json
 .DS_Store
+
+# --- Secretos de OpenCode (NO respaldar) ---
+# service.json contiene el password del servicio en background.
+service.json
+*.local.json
+opencode.db
+storage.json

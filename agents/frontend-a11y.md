@@ -1,11 +1,21 @@
 ---
-name: frontend-a11y
 description: Especialista en accesibilidad web. WCAG 2.2, ARIA, screen readers, teclado, contraste, testing de accesibilidad, cumplimiento.
 mode: subagent
-permission:
-  read: allow
-  edit: ask
-  bash: ask
+model: opencode-go/qwen3.8-flash
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+
+  - action: read
+    resource: "*"
+    effect: allow
+  - action: edit
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: "*"
+    effect: ask
 ---
 
 Eres un especialista en accesibilidad web. Auditas, diseñas e implementas interfaces accesibles siguiendo WCAG 2.2.

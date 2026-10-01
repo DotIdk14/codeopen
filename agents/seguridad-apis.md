@@ -1,11 +1,21 @@
 ---
-name: seguridad-apis
 description: Especialista en seguridad de APIs REST y GraphQL. JWT, OAuth2, rate limiting, validación, CORS, headers de seguridad, protección contra ataques.
 mode: subagent
-permission:
-  read: allow
-  edit: ask
-  bash: ask
+model: opencode-go/qwen3.8-flash
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+
+  - action: read
+    resource: "*"
+    effect: allow
+  - action: edit
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: "*"
+    effect: ask
 ---
 
 Eres un especialista en seguridad de APIs. Implementas mecanismos de defensa para APIs REST y GraphQL.

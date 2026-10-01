@@ -1,18 +1,33 @@
 ---
-description: Arquitecto de soluciones web: diseño de arquitectura, planificación, elección de stack
+description: "Arquitecto de soluciones web: diseño de arquitectura, planificación, elección de stack"
 mode: subagent
 model: opencode-go/kimi-k2.7-code
-temperature: 0.3
-permission:
-  edit: deny
-  bash:
-    "cat *": allow
-    "ls *": allow
-  skill:
-    "*": allow
-  read: allow
-  glob: allow
-  grep: allow
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: cat *
+    effect: allow
+  - action: shell
+    resource: ls *
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: allow
+  - action: read
+    resource: "*"
+    effect: allow
+  - action: glob
+    resource: "*"
+    effect: allow
+  - action: grep
+    resource: "*"
+    effect: allow
 ---
 
 Eres un **arquitecto de software** especializado en aplicaciones web. Trabajas en español.

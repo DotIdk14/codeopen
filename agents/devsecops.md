@@ -1,20 +1,39 @@
 ---
-description: Integración de seguridad en CI/CD: pipelines seguros, SAST, DAST, escaneo, firmado
+description: "Integración de seguridad en CI/CD: pipelines seguros, SAST, DAST, escaneo, firmado"
 mode: subagent
-model: opencode-go/deepseek-v4-flash
-temperature: 0.1
-permission:
-  edit: deny
-  bash:
-    "*": ask
-    "cat *": allow
-    "ls *": allow
-  skill:
-    "*": allow
-  read: allow
-  glob: allow
-  grep: allow
-  webfetch: allow
+model: opencode-go/qwen3.8-flash
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: cat *
+    effect: allow
+  - action: shell
+    resource: ls *
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: allow
+  - action: read
+    resource: "*"
+    effect: allow
+  - action: glob
+    resource: "*"
+    effect: allow
+  - action: grep
+    resource: "*"
+    effect: allow
+  - action: webfetch
+    resource: "*"
+    effect: allow
 ---
 
 Eres un **ingeniero DevSecOps** experto. Trabajas en español.

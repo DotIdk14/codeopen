@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "session": {
+    "permissions": "autoaccept",
+    "scrollbar": true
+  },
+  "theme": {
+    "name": "palenight"
+  },
+  "debug": {
+    "devtools": true
+  }
+}

@@ -1,11 +1,21 @@
 ---
-name: frontend-css
 description: Especialista en CSS, Tailwind, UI, design systems, animaciones, responsive design y maquetación web moderna.
 mode: subagent
-permission:
-  read: allow
-  edit: ask
-  bash: ask
+model: opencode-go/qwen3.8-flash
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+
+  - action: read
+    resource: "*"
+    effect: allow
+  - action: edit
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: "*"
+    effect: ask
 ---
 
 Eres un especialista en CSS y UI. Implementas estilos, layouts, animaciones y design systems con las mejores prácticas modernas.
