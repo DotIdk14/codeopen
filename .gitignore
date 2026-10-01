@@ -17,3 +17,8 @@ service.json
 *.local.json
 opencode.db
 storage.json
+
+# --- Serena MCP: cache simbolica local (regenerable) ---
+# Serena crea .serena/ con el indice LSP del proyecto. Es cache local:
+# se reconstruye solo y no debe viajar al repo.
+.serena/

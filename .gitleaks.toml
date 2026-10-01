@@ -1,0 +1,27 @@
+title = "codeopen — configuracion de gitleaks"
+
+[extend]
+# Extiende las reglas por defecto de gitleaks. No las reemplazamos.
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# FALSOS POSITIVOS CONOCIDOS
+# ---------------------------------------------------------------------------
+# La documentacion de las skills de InsForge usa como ejemplo un JWT truncado
+# (`eyJhbGciOiJIUzI1NiIs...`) sobre un dominio placeholder `your-appkey`.
+# La regla `generic-api-key` lo marca como API key, pero es un ejemplo de
+# documentacion, NO una credencial.
+#
+# Origen: commit 11b7134 (respaldo original), anterior al trabajo de Fase 2.
+#
+# La allowlist es POR ARCHIVO, deliberadamente estrecha: silenciar el arbol
+# completo de insforge dejaria pasar findings reales si ese arbol cambia.
+# Si agregas docs de InsForge, revisalos antes de ampliar esta lista.
+# ---------------------------------------------------------------------------
+
+[[allowlists]]
+description = "InsForge skill docs: JWT truncado de ejemplo, no credencial"
+paths = [
+  '''(^|/)(claude-skills|agents-skills)/insforge/SKILL\.md$''',
+  '''(^|/)(claude-skills|agents-skills)/insforge/storage/s3-gateway\.md$''',
+]

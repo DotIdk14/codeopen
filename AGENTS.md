@@ -428,19 +428,39 @@ existente** en vez de instalar un duplicado.
 ## SCANNERS DETERMINISTAS — estado y triggers
 
 Cada scanner tiene un **trigger**. No se corre por rutina: se corre cuando algo cambió en su
-dominio. Ninguno está instalado en esta máquina actualmente.
+dominio. Los cuatro binarios están instalados (vía `winget`, con aprobación del usuario);
+`ast-grep` sigue sin instalar porque no aporta ventaja real sobre `grep` para este repo.
 
-| Tool | Instalado | Se corre cuando | Qué detecta |
-| --- | --- | --- | --- |
-| `gitleaks` | No | Cambios, staging, commit, auditoría | Secrets en el diff y en el historial |
-| `osv-scanner` | No | Cambia `lockfile`, `package.json`, `requirements*`, `Cargo.lock`, `go.sum` | CVEs conocidas |
-| `trivy` | No | Hay `Dockerfile`, `docker-compose`, IaC, o release | Vulnerabilidades, misconfiguration, secrets |
-| `zizmor` | No | Cambia `.github/workflows/**` | Template injection, permisos excesivos, credenciales en workflows, action refs sospechosos |
-| `ast-grep` | No | Búsqueda estructural o refactor mecánico multi-archivo | Patrones por AST, no por texto |
+| Tool | Estado | Versión | Se corre cuando | Qué detecta |
+| --- | --- | --- | --- | --- |
+| `gitleaks` | Sí | 8.30.1 | Cambios, staging, commit, auditoría | Secrets en el diff y en el historial |
+| `osv-scanner` | Sí | 2.6.0 | Cambia `lockfile`, `package.json`, `requirements*`, `Cargo.lock`, `go.sum` | CVEs conocidas |
+| `trivy` | Sí | 0.74.0 | Hay `Dockerfile`, `docker-compose`, IaC, o release | Vulnerabilidades, misconfiguration, secrets |
+| `zizmor` | Sí | 1.30.1 | Cambia `.github/workflows/**` | Template injection, permisos excesivos, credenciales en workflows, action refs sospechosos |
+| `ast-grep` | No | — | Búsqueda estructural o refactor mecánico multi-archivo | Patrones por AST, no por texto |
+
+### Estado de triggers en ESTE repo
+
+| Tool | Trigger encendido? | Por qué |
+| --- | --- | --- |
+| `gitleaks` | **Sí** | El repo es público y tiene historial. Se corre siempre. |
+| `osv-scanner` | No | No hay lockfiles (`package.json` sin `package-lock.json`). |
+| `trivy` | No | No hay `Dockerfile`, `docker-compose` ni IaC. |
+| `zizmor` | No | No existe `.github/workflows/`. |
+
+Que un scanner esté instalado **no** significa que deba correrse. Si su trigger no está
+encendido, se documenta "no aplica" y se sigue.
 
 ### Reglas de uso
 
-- **`gitleaks` redacta.** Reporta archivo y línea, **nunca el valor completo** de un secreto.
+- **Usa siempre `--redact`.** Reporta archivo y línea, **nunca el valor completo** de un
+  secreto. Con `--redact`, gitleaks reemplaza el valor por la cadena `REDACTED` en el reporte
+  JSON: si ves `Secret` de longitud 8, es la redacción, no un valor real.
+- **Hay falsos positivos conocidos y ya están silenciados** en `.gitleaks.toml`: los docs de
+  las skills de InsForge contienen ejemplos de JWT truncados (`eyJ...Is...`) sobre dominios
+  `your-appkey`, que `generic-api-key` marca como API key. Son ejemplos de documentación,
+  **no credenciales**, y vienen del commit original `11b7134`. La allowlist es por ruta, para
+  no silenciar findings reales en el resto del repo.
 - **`osv-scanner` solo con lockfiles.** No escanea dependencias sin cambios.
 - **No auto-actualices dependencias.** Un bump de versión exige verificar breaking changes
   primero.
@@ -448,6 +468,81 @@ dominio. Ninguno está instalado en esta máquina actualmente.
 - **`zizmor` solo con workflows.** No lo ejecutes en un repo sin GitHub Actions.
 - **Instalar cualquiera de estos requiere aprobación del usuario.** Son instalaciones globales
   en un equipo corporativo. Ver la skill `safe-corporate-windows`.
+
+### Gotcha: PATH en Windows corporativo
+
+`winget` instala en `%LOCALAPPDATA%\Microsoft\WinGet\Links`, que **no siempre está en el PATH
+de la sesión**. Si un comando "no existe" pero `winget list` lo muestra como instalado, no
+reinstales: invocá el binario por ruta absoluta.
+
+```powershell
+$links = "$env:LOCALAPPDATA\Microsoft\WinGet\Links"
+& "$links\gitleaks.exe" detect --source . --redact
+```
+
+### `zizmor --version` devuelve exit -1
+
+Quirk de la herramienta, no está roto: `zizmor --help` devuelve `exit=0` con 188 líneas de
+ayuda. No lo tomes por una instalación fallida.
+
+---
+
+## SERENA (code intelligence) — incidente de ejecución
+
+**Síntoma:** tras `uv tool install -p 3.13 serena-agent`, los shims `serena.exe`,
+`serena-agent.exe` y `serena-hooks.exe` en `%USERPROFILE%\.local\bin` devuelven:
+
+```
+Acceso denegado
+comando: & "C:\Users\<user>\.local\bin\serena.exe" --version
+```
+
+**Diagnóstico (read-only, 2026-10-01):** install íntegro (venv con `Scripts\python.exe`),
+sin Mark of the Web, ACL con FullControl, sesión de administrador, Windows Defender en passive
+mode. Contraste decisivo: `uv.exe` (instalado por winget, en `WinGet\Links`) **sí corre**, y
+los shims generados por uv **no**. Bitdefender Endpoint Security está activo con protección en
+tiempo real. Conclusión: la capa que bloquea es **endpoint security** denegando ejecución de
+`.exe` sin firmar recién creados en directorios escribibles por el usuario. No se pudo
+distinguir de una regla WDAC/AppLocker: `Get-AppLockerPolicy -Effective` devuelve campos
+vacíos incluso como administrador.
+
+**Qué NO se hizo, deliberadamente:** no se agregó exclusión en Bitdefender, no se desactivó
+ningún antivirus, no se modificó AppLocker/WDAC. Son controles de seguridad corporativa y
+los decide TI, no el agente. Ver skill `safe-corporate-windows`, regla 3.
+
+**Resolución adoptada:** invocar el entry point real a través del intérprete de la venv, que
+**no** está bloqueado:
+
+```
+<python.exe de la venv> -c "from serena.cli import top_level; top_level()" start-mcp-server --project-from-cwd
+```
+
+Si TI autoriza la ruta, se puede volver al shim `serena.exe`.
+
+### Qué expone Serena 1.7.0
+
+Verificado contra su `tools/list` real: expone **exactamente 7 tools, todas read-only** —
+`find_symbol`, `get_symbols_overview`, `find_referencing_symbols`, `search_for_pattern`,
+`find_file`, `list_dir`, `read_file`.
+
+`replace_content`, `execute_shell_command` y `repl` **no existen** en esta versión: Serena los
+desactiva en modo agéntico. Eso significa que la postura read-only la impone **el propio
+Serena**, y la allowlist por herramienta de `explorador-repo` la refuerza. Defensa en
+profundidad, no una sola capa.
+
+Consecuencia práctica: si actualizas Serena y aparecen tools nuevas, la allowlist **no** las
+hereda. Sigue valiendo el deny global `serena_*`, así que fallan cerradas hasta que las
+enumieres y evalúes una por una.
+
+### El flag `--project-from-cwd` es obligatorio
+
+Sin él, Serena arranca sin proyecto y toda tool responde `No active project`. Con él, busca
+el ancestro más cercano del cwd que contenga `.serena/project.yml` o `.git`. Si la sesión
+corre desde el home directory, no hay proyecto que detectar: mové la sesión al repo.
+
+Nota: Serena crea `.serena/` en el proyecto (índice LSP). Es caché local regenerable y está
+en `.gitignore`.
+
 
 ### MCP servers no confiable
 

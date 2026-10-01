@@ -20,6 +20,15 @@ permissions:
   # Allowlist EXPLICITA de tools read-only. El deny global `serena_*`
   # sigue vigente para todo lo demas, asi que cualquier tool no listada
   # aqui queda bloqueada. Fail-closed.
+  #
+  # VERIFICADO contra el `tools/list` real de Serena 1.7.0, que expone
+  # exactamente 7 tools y todas son de solo lectura. No se listan tools
+  # "por si acaso": enumerar en vez de hacer wildcard-allow para que una
+  # tool nueva o inattendida falle cerrada.
+  #
+  # Serena 1.7.0 ya NO expone replace_content, execute_shell_command ni
+  # repl (los desactiva en modo agéntico), asi que la postura read-only la
+  # impone el propio Serena Y la reinforce esta allowlist.
   - action: serena_find_symbol
     resource: "*"
     effect: allow
@@ -27,15 +36,6 @@ permissions:
     resource: "*"
     effect: allow
   - action: serena_find_referencing_symbols
-    resource: "*"
-    effect: allow
-  - action: serena_find_declaration
-    resource: "*"
-    effect: allow
-  - action: serena_find_implementations
-    resource: "*"
-    effect: allow
-  - action: serena_get_diagnostics_for_file
     resource: "*"
     effect: allow
   - action: serena_search_for_pattern
@@ -48,24 +48,6 @@ permissions:
     resource: "*"
     effect: allow
   - action: serena_read_file
-    resource: "*"
-    effect: allow
-  - action: serena_serena_info
-    resource: "*"
-    effect: allow
-  - action: serena_initial_instructions
-    resource: "*"
-    effect: allow
-  - action: serena_activate_project
-    resource: "*"
-    effect: allow
-  - action: serena_get_current_config
-    resource: "*"
-    effect: allow
-  - action: serena_list_memories
-    resource: "*"
-    effect: allow
-  - action: serena_read_memory
     resource: "*"
     effect: allow
 
